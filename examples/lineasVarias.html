@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ejercicios de Trazado con Líneas</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  
+<script type="importmap">
+{
+  "imports": {
+    "three": "../build/three.module.js",
+    "three/addons/": "./jsm/"
+  }
+}
+</script>
+  <script type="module">
+
+      
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let scene, camera, renderer;
+    init();
+    drawExamples();
+    animate();
+
+    function init() {
+      
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 5, 10);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.update();
+
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function drawLine(points, material) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, material);
+      scene.add(line);
+    }
+
+    function drawDashedLine(points) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineDashedMaterial({
+        color: 'green',
+        dashSize: 0.1,
+        gapSize: 0.1,
+        linewidth: 1
+      });
+      const line = new THREE.Line(geometry, material);
+      line.computeLineDistances();
+      scene.add(line);
+    }
+
+    function drawPoints(points) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.PointsMaterial({ color: 'blue', size: 0.3 });
+      const pointCloud = new THREE.Points(geometry, material);
+      scene.add(pointCloud);
+    }
+
+    function drawExamples() {
+
+      
+      // Línea continua
+      drawLine([
+        // new THREE.Vector3(-8, 5, 0),
+        // new THREE.Vector3(-6, 2, 0),
+        // new THREE.Vector3(-4, 4, 0)
+        new THREE.Vector3(3, 0, 0),
+        new THREE.Vector3(0, 3, 0),
+        new THREE.Vector3(0, 0, 3),
+        new THREE.Vector3(3, 0, 0)
+      ], new THREE.LineBasicMaterial({ color: 'white', linewidth: 2 }));
+
+      // Línea descontinua
+      drawDashedLine([
+        new THREE.Vector3(-3, 5, 0),
+        new THREE.Vector3(-1, 2, 0),
+        new THREE.Vector3(1, 4, 0)
+      ]);
+
+      // Puntos sueltos
+      drawPoints([
+        new THREE.Vector3(2, 2, 0),
+        new THREE.Vector3(3, 3, 0),
+        new THREE.Vector3(4, 2, 0)
+      ]);
+
+      // Combinación de puntos y líneas
+      drawLine([
+        new THREE.Vector3(5, 5, 0),
+        new THREE.Vector3(6, 3, 0),
+        new THREE.Vector3(7, 5, 0)
+      ], new THREE.LineBasicMaterial({ color: 'blue' }));
+      drawPoints([
+        new THREE.Vector3(3,0, 0),
+        new THREE.Vector3(0, 3, 0),
+        new THREE.Vector3(0, 0, 3)
+      ]);
+      
+    }
+
+    const axesHelper = new THREE.AxesHelper(10);
+    scene.add(axesHelper);
+
+
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>

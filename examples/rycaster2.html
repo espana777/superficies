@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Página Principal - Cubo 3D</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+    #info {
+      position: absolute; top: 20px; left: 20px;
+      background: rgba(0,0,0,0.7); color: white;
+      padding: 20px; border-radius: 10px; z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h2>Sección Principal</h2>
+    <p>Haz clic en el cubo para ir a la segunda página con el cono 3D.</p>
+  </div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../build/three.module.js",
+    "three/addons/": "./jsm/"
+  }
+}
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Luz
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(2, 2, 5);
+    scene.add(light);
+
+    // Cubo interactivo
+    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x0077ff });
+    const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    cube.name = 'cuboInteractivo';
+    scene.add(cube);
+
+    camera.position.z = 5;
+
+    // Raycaster para detectar clics
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('click', (event) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects([cube]);
+
+      if (intersects.length > 0) {
+        // Redirigir a la segunda página
+        window.location.href = 'rycaster1.html';
+      }
+    });
+
+    // Control de rotación inicial
+    let rotationInProgress = true;
+    let rotationSpeed = Math.PI / 60; // 3 grados por cuadro aprox
+    let currentRotation = 0;
+    const totalRotation = 2 * Math.PI; // 360 grados en radianes
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Rotar el cubo una sola vez al inicio
+      if (rotationInProgress) {
+        if (currentRotation < totalRotation) {
+          cube.rotation.y += rotationSpeed;
+          currentRotation += rotationSpeed;
+        } else {
+          rotationInProgress = false;
+          cube.rotation.y = 0; // Reinicia a 0 si lo prefieres
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Responsive
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

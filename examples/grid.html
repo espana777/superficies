@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid</title>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+    </style>
+</head>
+<body>
+
+
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "../build/three.module.js",
+            "three/addons/": "./jsm/"
+          }
+        }
+      </script>
+
+  <div class="container">
+
+  <script type="module">
+
+  import * as THREE from 'three';
+  
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 500 );
+
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setAnimationLoop( animate );
+document.body.appendChild( renderer.domElement );
+const control = new OrbitControls(camera, renderer.domElement);
+control.update();
+
+const axesHelper = new THREE.AxesHelper(5);
+scene.add(axesHelper);
+
+
+const planeMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(20, 20),
+  new THREE.MeshBasicMaterial({
+    side: THREE.DoubleSide,
+    visible:false
+  })
+);
+
+planeMesh.rotation.x = (-Math.PI / 2);
+
+
+scene.add(planeMesh);
+
+const grid = new THREE.GridHelper(20, 20);
+scene.add(grid);
+
+
+
+const geometry = new THREE.BoxGeometry( 3, 10, 3);
+const material = new THREE.MeshBasicMaterial( { color: 'blue' } );
+const cube = new THREE.Mesh( geometry, material );
+const cube2 = new THREE.Mesh( geometry, material );
+const cube3 = new THREE.Mesh( geometry, material );
+scene.add( cube, cube2, cube3 );
+
+cube.position.set(-8,5,0);
+cube2.position.set(8,5,0);
+cube3.position.set(0,5,-8);
+
+
+
+camera.position.set(0, 20 ,20);
+camera.lookAt(cube.position);
+
+
+
+function animate() {
+
+// cube.rotation.x += 0.01;
+
+cube.rotation.y += 0.01;
+cube2.rotation.y += 0.01;
+cube3.rotation.y += 0.01;
+
+
+
+  control.update(); // Actualizar controles de órbita
+  renderer.render( scene, camera );
+
+}
+
+  </script> 
+
+
+</body>
+</html>

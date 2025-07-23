@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Líneas Paralelas X e Y</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #ui {
+      position: absolute; top: 10px; left: 10px;
+      background: white; padding: 10px;
+      border-radius: 8px; z-index: 1;
+    }
+    #labels {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="ui">
+    <p><strong>Controles:</strong></p>
+    <p>W/S: mover línea horizontal (Y)</p>
+    <p>A/D: mover línea vertical (X)</p>
+    <p>C: centrar ambas líneas</p>
+  </div>
+
+  <!-- Etiquetas para mostrar posiciones -->
+  <div id="labels">
+    <div id="xLabel">x = 0</div>
+    <div id="yLabel">y = 0</div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+  import * as THREE from 'three';
+
+  const scene = new THREE.Scene();
+  scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 30);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0xf0f0f0);
+  document.body.appendChild(renderer.domElement);
+
+  // Grid de referencia
+  const grid = new THREE.GridHelper(40, 40);
+  grid.rotation.x = Math.PI / 2;
+  scene.add(grid);
+
+  // Posiciones iniciales
+  let xLinePos = 0;
+  let yLinePos = 0;
+
+  // Línea paralela al eje Y
+  const xLineGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(xLinePos, -50, 0),
+    new THREE.Vector3(xLinePos, 50, 0)
+  ]);
+  const xLine = new THREE.Line(xLineGeo, new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 2 }));
+  scene.add(xLine);
+
+  // Línea paralela al eje X
+  const yLineGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-50, yLinePos, 0),
+    new THREE.Vector3(50, yLinePos, 0)
+  ]);
+  const yLine = new THREE.Line(yLineGeo, new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 }));
+  scene.add(yLine);
+
+  // Etiquetas DOM
+  const xLabel = document.getElementById('xLabel');
+  const yLabel = document.getElementById('yLabel');
+
+  // Evento de teclado
+  window.addEventListener('keydown', e => {
+    let updated = false;
+
+    switch (e.key.toLowerCase()) {
+      case 'a':
+        xLinePos--; updated = true;
+        break;
+      case 'd':
+        xLinePos++; updated = true;
+        break;
+      case 'w':
+        yLinePos++; updated = true;
+        break;
+      case 's':
+        yLinePos--; updated = true;
+        break;
+      case 'c':
+        xLinePos = 0; yLinePos = 0; updated = true;
+        break;
+    }
+
+    if (updated) {
+      xLine.geometry.setFromPoints([
+        new THREE.Vector3(xLinePos, -50, 0),
+        new THREE.Vector3(xLinePos, 50, 0)
+      ]);
+      yLine.geometry.setFromPoints([
+        new THREE.Vector3(-50, yLinePos, 0),
+        new THREE.Vector3(50, yLinePos, 0)
+      ]);
+      xLabel.textContent = `x = ${xLinePos}`;
+      yLabel.textContent = `y = ${yLinePos}`;
+    }
+  });
+
+  // Animación
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Responsive
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gráfica 3D con Cubos y Cámara Reactiva a la Música</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let scene, camera, renderer;
+let cubos = [], ruta = [];
+let currentTarget = 0;
+let cameraMoving = false;
+let audioStarted = false;
+let analyser, dataArray;
+let clock = new THREE.Clock();
+
+init();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(30, 20, 30);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Luz
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(50, 50, 50);
+  scene.add(dirLight);
+
+  scene.add(new THREE.GridHelper(100, 20));
+  scene.add(new THREE.AxesHelper(20));
+
+  // Datos y cubos
+  const datos = [5, 15, 25, 10, 30, 20];
+  const spacing = 6;
+
+  datos.forEach((altura, i) => {
+    const geo = new THREE.BoxGeometry(3, 1, 3); // Altura inicial = 1
+    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(`hsl(${i * 50}, 100%, 50%)`) });
+    const cubo = new THREE.Mesh(geo, mat);
+    const x = i * spacing - (datos.length * spacing) / 2;
+    cubo.position.set(x, 0.5, 0);
+    cubo.userData.alturaFinal = altura;
+    cubo.userData.creciendo = true;
+    scene.add(cubo);
+    cubos.push(cubo);
+
+    // Puntos para la cámara
+    ruta.push({
+      position: new THREE.Vector3(x + 6, altura + 10, 10),
+      lookAt: new THREE.Vector3(x, altura / 2, 0)
+    });
+  });
+
+  // Audio
+  const listener = new THREE.AudioListener();
+  camera.add(listener);
+
+  const sound = new THREE.Audio(listener);
+  const audioLoader = new THREE.AudioLoader();
+
+  audioLoader.load('musica.mp3', function (buffer) {
+    sound.setBuffer(buffer);
+    sound.setLoop(true);
+    sound.setVolume(0.8);
+
+    // Analizador de frecuencia
+    analyser = new THREE.AudioAnalyser(sound, 128);
+    dataArray = analyser.data;
+
+    document.addEventListener('click', () => {
+      if (!audioStarted) {
+        sound.play();
+        audioStarted = true;
+        animate();
+      }
+    });
+
+    const info = document.createElement('div');
+    info.style.position = 'absolute';
+    info.style.color = 'white';
+    info.style.top = '10px';
+    info.style.left = '10px';
+    info.style.fontFamily = 'sans-serif';
+    info.innerHTML = 'Haz clic para comenzar 🎧';
+    document.body.appendChild(info);
+  });
+
+  // Resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+
+  // Crecimiento de cubos
+  cubos.forEach(cubo => {
+    if (cubo.userData.creciendo) {
+      const h = cubo.geometry.parameters.height;
+      const final = cubo.userData.alturaFinal;
+      if (h < final) {
+        const nuevaAltura = Math.min(h + 0.5, final);
+        cubo.geometry.dispose();
+        cubo.geometry = new THREE.BoxGeometry(3, nuevaAltura, 3);
+        cubo.position.y = nuevaAltura / 2;
+      } else {
+        cubo.userData.creciendo = false;
+      }
+    }
+  });
+
+  // Movimiento reactivo a la música
+  if (audioStarted && analyser) {
+    analyser.getFrequencyData();
+    const avg = analyser.getAverageFrequency(); // 0 a 255
+
+    if (!cameraMoving && avg > 90) {  // Umbral ajustable
+      cameraMoving = true;
+      moveToNextTarget();
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+function moveToNextTarget() {
+  const target = ruta[currentTarget];
+  const duration = 1.5; // segundos
+  const startPos = camera.position.clone();
+  const endPos = target.position.clone();
+  const lookTarget = target.lookAt.clone();
+  let t = 0;
+
+  const mover = () => {
+    t += clock.getDelta() / duration;
+    if (t >= 1) {
+      camera.position.copy(endPos);
+      camera.lookAt(lookTarget);
+      cameraMoving = false;
+      currentTarget = (currentTarget + 1) % ruta.length;
+      return;
+    }
+
+    camera.position.lerpVectors(startPos, endPos, t);
+    camera.lookAt(lookTarget);
+    requestAnimationFrame(mover);
+  };
+
+  mover();
+}
+</script>
+
+</body>
+</html>

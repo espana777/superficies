@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gráfica con Etiquetas</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    .label {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { Reflector } from 'three/addons/objects/Reflector.js';
+  import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x202020);
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(10, 8, 10);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Label Renderer
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  document.body.appendChild(labelRenderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.enablePan = false;
+
+  // Luces
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(10, 10, 10);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x404040));
+
+  // Grupo de barras
+  const barGroup = new THREE.Group();
+  const barWidth = 0.8;
+  const spacing = 1.2;
+  const barMeshes = [];
+
+  for (let i = 0; i < 7; i++) {
+    const geometry = new THREE.BoxGeometry(barWidth, 1, barWidth);
+    const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+    const bar = new THREE.Mesh(geometry, material);
+    bar.position.set(i * spacing, 0.5, 0);
+    bar.userData.baseY = 0.5;
+
+    // Crear etiqueta flotante
+    const div = document.createElement('div');
+    div.className = 'label';
+    div.textContent = '1.0';
+    const label = new CSS2DObject(div);
+    label.position.set(0, 0.6, 0);
+    bar.add(label);
+
+    bar.userData.label = label;
+    barMeshes.push(bar);
+    barGroup.add(bar);
+  }
+
+  barGroup.position.set(-((7 - 1) * spacing) / 2, 0, 0);
+  scene.add(barGroup);
+
+  // Espejo (suelo)
+  const mirrorGeometry = new THREE.PlaneGeometry(30, 30);
+  const mirror = new Reflector(mirrorGeometry, {
+    clipBias: 0.003,
+    textureWidth: window.innerWidth * window.devicePixelRatio,
+    textureHeight: window.innerHeight * window.devicePixelRatio,
+    color: 0x888888
+  });
+  mirror.rotation.x = -Math.PI / 2;
+  mirror.position.y = 0;
+  scene.add(mirror);
+
+  // Color según altura
+  function getColorByHeight(height, min, max) {
+    const t = (height - min) / (max - min);
+    const r = Math.floor(255 * t);
+    const g = Math.floor(128 * (1 - t));
+    const b = Math.floor(255 * (1 - t));
+    return new THREE.Color(`rgb(${r},${g},${b})`);
+  }
+
+  // Animación
+  let angle = 0;
+  let time = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+
+    // Cámara gira
+    angle += 0.003;
+    const radius = 12;
+    camera.position.x = Math.cos(angle) * radius;
+    camera.position.z = Math.sin(angle) * radius;
+    camera.lookAt(barGroup.position);
+
+    time += 0.002;
+    barMeshes.forEach((bar, i) => {
+      const height = 1.5 + Math.sin(time + i) * 2.5;
+      bar.scale.y = height;
+      bar.position.y = height / 2;
+      bar.material.color.set(getColorByHeight(height, 0, 5));
+      bar.userData.label.position.y = height / 2 + 0.2;
+      bar.userData.label.element.textContent = height.toFixed(1);
+    });
+
+    controls.update();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+  }
+
+  animate();
+
+  // Responsive
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+
+</body>
+</html>

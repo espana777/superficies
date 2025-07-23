@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ejercicios de Trazado con Líneas</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 8px;
+      max-width: 300px;
+      font-size: 14px;
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h3>Ejercicios con Líneas y Puntos</h3>
+    <p>
+      Este escenario muestra diferentes formas de representación gráfica con Three.js:<br>
+      - Líneas continuas<br>
+      - Líneas discontinuas (dashed)<br>
+      - Conjuntos de puntos<br>
+      - Combinaciones de líneas y puntos<br>
+      - Animación tipo espiral con líneas y puntos<br>
+    </p>
+  </div>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "../build/three.module.js",
+    "three/addons/": "./jsm/"
+  }
+}
+</script>
+
+  <script type="module">
+    
+      
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {FontLoader} from 'three/addons/loaders/FontLoader.js';
+import {TextGeometry} from 'three/addons/geometries/TextGeometry.js';
+
+    let scene, camera, renderer, spiralGroup;
+    init();
+    drawExamples();
+    drawSpiral();
+    animate();
+
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = 20;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+      const control = new OrbitControls(camera, renderer.domElement);
+      control.update();
+
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function drawLine(points, material) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, material);
+      scene.add(line);
+    }
+
+    function drawDashedLine(points) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineDashedMaterial({
+        color: 0xff0000,
+        dashSize: 0.5,
+        gapSize: 0.25,
+        linewidth: 1
+      });
+      const line = new THREE.Line(geometry, material);
+      line.computeLineDistances();
+      scene.add(line);
+    }
+
+    function drawPoints(points) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.PointsMaterial({ color: 0x00ff00, size: 0.2 });
+      const pointCloud = new THREE.Points(geometry, material);
+      scene.add(pointCloud);
+    }
+
+    function add3DText(text, position, size = 0.5, color = 0x222222) {
+      const loader = new FontLoader();
+      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+        const geometry = new TextGeometry(text, {
+          font: font,
+          size: size,
+          height: 0.1,
+          curveSegments: 12,
+        });
+        geometry.computeBoundingBox();
+        geometry.computeVertexNormals();
+
+        const material = new THREE.MeshStandardMaterial({ color });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        scene.add(mesh);
+
+        // Animación de rotación
+        function rotateText() {
+          mesh.rotation.y += 0.01;
+          requestAnimationFrame(rotateText);
+        }
+        rotateText();
+      });
+    }
+
+    function drawExamples() {
+      drawLine([
+        new THREE.Vector3(-8, 5, 0),
+        new THREE.Vector3(-6, 2, 0),
+        new THREE.Vector3(-4, 4, 0)
+      ], new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 2 }));
+
+      drawDashedLine([
+        new THREE.Vector3(-3, 5, 0),
+        new THREE.Vector3(-1, 2, 0),
+        new THREE.Vector3(1, 4, 0)
+      ]);
+
+      drawPoints([
+        new THREE.Vector3(2, 2, 0),
+        new THREE.Vector3(3, 3, 0),
+        new THREE.Vector3(4, 2, 0)
+      ]);
+
+      drawLine([
+        new THREE.Vector3(5, 5, 0),
+        new THREE.Vector3(6, 3, 0),
+        new THREE.Vector3(7, 5, 0)
+      ], new THREE.LineBasicMaterial({ color: 0xffff00 }));
+      drawPoints([
+        new THREE.Vector3(5, 5, 0),
+        new THREE.Vector3(6, 3, 0),
+        new THREE.Vector3(7, 5, 0)
+      ]);
+
+      add3DText("Línea continua", new THREE.Vector3(-8, 6, 0));
+      add3DText("Línea discontinua", new THREE.Vector3(-3, 6, 0));
+      add3DText("Puntos", new THREE.Vector3(2, 3.5, 0));
+      add3DText("Línea y puntos", new THREE.Vector3(5, 6, 0));
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(0, 10, 10);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+
+      const ambientLight = new THREE.AmbientLight(0x404040);
+      scene.add(ambientLight);
+    }
+
+    function drawSpiral() {
+      spiralGroup = new THREE.Group();
+
+      const points = [];
+      const spiralPoints = [];
+      const turns = 5;
+      const segments = 100;
+
+      for (let i = 0; i < segments; i++) {
+        const angle = i / segments * Math.PI * 2 * turns;
+        const radius = 0.2 * i;
+        const x = Math.cos(angle) * radius * 0.05;
+        const y = Math.sin(angle) * radius * 0.05;
+        const z = 0.05 * i;
+        const vec = new THREE.Vector3(x, y, z);
+        points.push(vec);
+        spiralPoints.push(vec);
+      }
+
+      const lineGeometry = new THREE.BufferGeometry().setFromPoints(spiralPoints);
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff });
+      const spiralLine = new THREE.Line(lineGeometry, lineMaterial);
+      spiralGroup.add(spiralLine);
+
+      const pointMaterial = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.1 });
+      const pointGeometry = new THREE.BufferGeometry().setFromPoints(points);
+      const pointCloud = new THREE.Points(pointGeometry, pointMaterial);
+      spiralGroup.add(pointCloud);
+
+      spiralGroup.position.set(-5, -5, -5);
+      scene.add(spiralGroup);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (spiralGroup) spiralGroup.rotation.y += 0.01;
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>

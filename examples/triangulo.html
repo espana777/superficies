@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Triángulo Rectángulo Interactivo</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.85);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="info"></div>
+
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "../build/three.module.js",
+    "three/addons/": "./jsm/"
+  }
+}
+</script>
+
+  <script type="module">
+    
+      
+import * as THREE from 'three';
+
+    let scene = new THREE.Scene();
+    let camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 100);
+    camera.position.z = 10;
+
+    let renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    let A = new THREE.Vector3(0, 0, 0);
+    let B = new THREE.Vector3(3, 0, 0);
+    let C = new THREE.Vector3(3, 4, 0);
+
+    let triangleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+    let triangleGeometry = new THREE.BufferGeometry();
+    let triangleLine = new THREE.Line(triangleGeometry, triangleMaterial);
+    scene.add(triangleLine);
+
+    const labels = {};
+
+    function createLabel(name, position) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'black';
+      ctx.font = '20px sans-serif';
+      ctx.fillText(name, 10, 40);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.set(2.5, 0.6, 1);
+      sprite.position.copy(position);
+      scene.add(sprite);
+      return sprite;
+    }
+
+    labels.adj = createLabel('Adyacente', new THREE.Vector3(1.5, -0.5, 0));
+    labels.opp = createLabel('Opuesto', new THREE.Vector3(3.5, 2, 0));
+    labels.hyp = createLabel('Hipotenusa', new THREE.Vector3(1.5, 2.2, 0));
+
+    const angleArc = new THREE.ArcCurve(0, 0, 1.5, 0, Math.atan2(4, 5), false);
+    const anglePoints = angleArc.getPoints(50);
+    const angleGeometry = new THREE.BufferGeometry().setFromPoints(anglePoints);
+    const angleLine = new THREE.Line(angleGeometry, new THREE.LineDashedMaterial({ color: 0xff0000, dashSize: 0.2, gapSize: 0.1 }));
+    scene.add(angleLine);
+
+    const arrowDir = new THREE.Vector3();
+    const arrowHelper = new THREE.ArrowHelper(arrowDir, new THREE.Vector3(), 1, 0x00ff00, 0.4, 0.2);
+    scene.add(arrowHelper);
+
+    function updateTriangle() {
+      triangleGeometry.setFromPoints([A, B, C, A]);
+
+      labels.adj.position.set((A.x + B.x) / 2, A.y - 0.5, 0);
+      labels.opp.position.set(B.x + 0.5, (B.y + C.y) / 2, 0);
+      labels.hyp.position.set((A.x + C.x) / 2, (A.y + C.y) / 2 + 0.2, 0);
+
+      let angle = Math.atan2(C.y - A.y, C.x - A.x);
+      const arc = new THREE.ArcCurve(0, 0, 1.5, 0, angle, false);
+      const arcPoints = arc.getPoints(50);
+      angleGeometry.setFromPoints(arcPoints);
+
+      const adj = B.distanceTo(A);
+      const opp = C.distanceTo(B);
+      arrowDir.set(adj, opp, 0).normalize();
+      arrowHelper.setDirection(arrowDir);
+      arrowHelper.setLength(Math.sqrt(adj * adj + opp * opp) * 0.5);
+      arrowHelper.position.set(A.x, A.y, 0);
+    }
+
+    updateTriangle();
+
+    const info = document.getElementById('info');
+
+    function updateInfo() {
+      let adj = B.distanceTo(A);
+      let opp = C.distanceTo(B);
+      let hyp = C.distanceTo(A);
+
+      let sen = opp / hyp;
+      let cos = adj / hyp;
+      let tan = opp / adj;
+
+      info.innerHTML = `
+        <strong>Valores en tiempo real</strong><br>
+        Cateto adyacente: ${adj.toFixed(2)}<br>
+        Cateto opuesto: ${opp.toFixed(2)}<br>
+        Hipotenusa: ${hyp.toFixed(2)}<br><br>
+        sen(θ) = ${opp.toFixed(2)} / ${hyp.toFixed(2)} = ${sen.toFixed(2)}<br>
+        cos(θ) = ${adj.toFixed(2)} / ${hyp.toFixed(2)} = ${cos.toFixed(2)}<br>
+        tan(θ) = ${opp.toFixed(2)} / ${adj.toFixed(2)} = ${tan.toFixed(2)}
+      `;
+    }
+
+    updateInfo();
+
+    let dragging = false;
+
+    renderer.domElement.addEventListener('mousedown', (e) => {
+      dragging = true;
+    });
+
+    renderer.domElement.addEventListener('mouseup', () => {
+      dragging = false;
+    });
+
+    renderer.domElement.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+
+      let mouse = new THREE.Vector2(
+        (e.clientX / window.innerWidth) * 2 - 1,
+        -(e.clientY / window.innerHeight) * 2 + 1
+      );
+
+      let raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+      let planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      let point = new THREE.Vector3();
+      raycaster.ray.intersectPlane(planeZ, point);
+
+      const dir = new THREE.Vector3().subVectors(point, A).normalize();
+      const baseLength = 5; // longitud original de AB
+      const scale = point.distanceTo(A) / C.distanceTo(A);
+      B.set(A.x + baseLength * dir.x, A.y + baseLength * dir.y, 0);
+      C.set(A.x + point.x - A.x, A.y + point.y - A.y, 0);
+      C.multiplyScalar(scale);
+
+      updateTriangle();
+      updateInfo();
+    });
+
+    renderer.domElement.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const scale = e.deltaY < 0 ? 1.05 : 0.95;
+      B.sub(A).multiplyScalar(scale).add(A);
+      C.sub(A).multiplyScalar(scale).add(A);
+      updateTriangle();
+      updateInfo();
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

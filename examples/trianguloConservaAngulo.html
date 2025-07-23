@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Triángulo Rectángulo Interactivo</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+    import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+    import { DragControls } from 'three/addons/controls/DragControls.js';
+
+    let scene, camera, renderer, controls;
+    let vertices = [];
+    let labels = [], sideLabels = [], angleLabels = [];
+    let lineSegments;
+    let font;
+    let ratioLabels = [];
+
+
+
+
+    init();
+    animate();
+
+    function init() {
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 30);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableRotate = false;
+      controls.enableZoom = true;
+
+
+      // Grid Helper
+      // const grid = new THREE.GridHelper(20, 20, 0x444444, 0x888888);
+      // grid.rotation.x = Math.PI / 2;
+      // scene.add(grid);
+
+      // const axes = new THREE.AxesHelper(5);
+      // scene.add(axes);
+
+      const loader = new FontLoader();
+      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (loadedFont) => {
+        font = loadedFont;
+        createTriangle();
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function createTextLabel(text, position, color = 0xffff00) {
+      const geometry = new TextGeometry(text, {
+        font: font,
+        size: 0.5,
+        height: 0.05
+      });
+      const material = new THREE.MeshBasicMaterial({ color });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(position);
+      scene.add(mesh);
+      return mesh;
+    }
+
+    function createTriangle() {
+      const positions = [
+        new THREE.Vector3(-5, 0, 0), // A
+        new THREE.Vector3(5, 0, 0),  // B
+        new THREE.Vector3(5, 8, 0)   // C
+      ];
+
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const sphereGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+
+      positions.forEach((pos, i) => {
+        const sphere = new THREE.Mesh(sphereGeometry, material);
+        sphere.position.copy(pos);
+        scene.add(sphere);
+        vertices.push(sphere);
+      });
+
+      const dragControls = new DragControls(vertices, camera, renderer.domElement);
+      dragControls.addEventListener('drag', updateTriangle);
+
+      updateTriangle();
+    }
+
+    function updateTriangle() {
+      if (!font) return;
+
+      // Eliminar etiquetas anteriores
+      [...labels, ...sideLabels, ...angleLabels].forEach(label => scene.remove(label));
+      labels = [];
+      sideLabels = [];
+      angleLabels = [];
+
+      // Coordenadas
+      const A = vertices[0].position;
+      const B = vertices[1].position;
+      const C = vertices[2].position;
+
+      const geometry = new THREE.BufferGeometry().setFromPoints([A, B, C, A]);
+
+      if (lineSegments) scene.remove(lineSegments);
+      const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+      lineSegments = new THREE.Line(geometry, material);
+      scene.add(lineSegments);
+
+      // Etiquetas de vértices
+      labels.push(createTextLabel('A', A.clone().add(new THREE.Vector3(-0.5, 0.5, 0))));
+      labels.push(createTextLabel('B', B.clone().add(new THREE.Vector3(-0.5, 0.5, 0))));
+      labels.push(createTextLabel('C', C.clone().add(new THREE.Vector3(-0.5, 0.5, 0))));
+
+      // Longitudes
+      const ab = A.distanceTo(B).toFixed(2);
+      const bc = B.distanceTo(C).toFixed(2);
+      const ca = C.distanceTo(A).toFixed(2);
+
+      sideLabels.push(createTextLabel(ab, A.clone().add(B).multiplyScalar(0.5)));
+      sideLabels.push(createTextLabel(bc, B.clone().add(C).multiplyScalar(0.5)));
+      sideLabels.push(createTextLabel(ca, C.clone().add(A).multiplyScalar(0.5)));
+
+      // Cálculo de ángulos
+      function angleBetween(a, b, c) {
+        const ab = new THREE.Vector3().subVectors(a, b).normalize();
+        const cb = new THREE.Vector3().subVectors(c, b).normalize();
+        return THREE.MathUtils.radToDeg(ab.angleTo(cb)).toFixed(1);
+      }
+
+      const angleA = angleBetween(C, A, B);
+      const angleB = angleBetween(A, B, C);
+      const angleC = angleBetween(B, C, A);
+
+      angleLabels.push(createTextLabel(`${angleA}°`, A.clone().add(new THREE.Vector3(0.6, 0.6, 0)), 0x00ffff));
+      angleLabels.push(createTextLabel(`${angleB}°`, B.clone().add(new THREE.Vector3(0.6, 0.6, 0)), 0x00ffff));
+      angleLabels.push(createTextLabel(`${angleC}°`, C.clone().add(new THREE.Vector3(0.6, 0.6, 0)), 0x00ffff));
+
+      ratioLabels.forEach(label => scene.remove(label));  
+      ratioLabels = [];
+
+      // Cálculo de razones trigonométricas
+      const catetoOpuesto = C.distanceTo(B);
+      const catetoAdyacente = A.distanceTo(B);
+      const hipotenusa = C.distanceTo(A);
+
+      const seno = (catetoOpuesto / hipotenusa).toFixed(2);
+      const coseno = (catetoAdyacente / hipotenusa).toFixed(2);
+      const tangente = (catetoOpuesto / catetoAdyacente).toFixed(2);
+
+const basePos = B.clone().add(new THREE.Vector3(0, -3.0, 0));
+
+ratioLabels.push(createTextLabel(`${catetoOpuesto.toFixed(2)} / ${catetoAdyacente.toFixed(2)} = ${tangente} (tan)`, basePos.clone().add(new THREE.Vector3(0, 0, 0)), 0xffffff));
+ratioLabels.push(createTextLabel(`${catetoOpuesto.toFixed(2)} / ${hipotenusa.toFixed(2)} = ${seno} (sin)`, basePos.clone().add(new THREE.Vector3(0, -1.0, 0)), 0x00ffcc));
+ratioLabels.push(createTextLabel(`${catetoAdyacente.toFixed(2)} / ${hipotenusa.toFixed(2)} = ${coseno} (cos)`, basePos.clone().add(new THREE.Vector3(0, -2.0, 0)), 0xffaa00));
+
+
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>

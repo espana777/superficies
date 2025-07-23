@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Espejo con Sombras</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { Reflector } from 'three/addons/objects/Reflector.js';
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x202020);
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(10, 10, 30);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+
+  // 1. LUZ AMBIENTAL SUAVE
+const ambientLight = new THREE.AmbientLight(0x404040, 1); // Luz suave general
+scene.add(ambientLight);
+
+
+  // LUZ SPOT CON SOMBRAS
+  const spotLight = new THREE.SpotLight(0xffffff, 300);
+  spotLight.position.set(0, 10, 20);
+  spotLight.angle = Math.PI / 6;
+  spotLight.penumbra = 0.5;
+  spotLight.castShadow = true;
+  spotLight.shadow.mapSize.width = 1024;
+  spotLight.shadow.mapSize.height = 1024;
+  spotLight.shadow.camera.near = 5;
+  spotLight.shadow.camera.far = 50;
+  scene.add(spotLight);
+  // scene.add(spotLight.target);
+
+  // MATERIALES Y CILINDROS
+  const material = new THREE.MeshStandardMaterial({ color: 'blue' });
+
+  const geometries = [
+    new THREE.CylinderGeometry(3, 3, 15, 32),
+    new THREE.CylinderGeometry(3, 3, 8, 32),
+    new THREE.CylinderGeometry(3, 3, 15, 32),
+    new THREE.CylinderGeometry(3, 3, 15, 32),
+    new THREE.CylinderGeometry(3, 3, 13, 32)
+  ];
+
+  const targetYPositions = [10, 10, 10, 10, 10];
+  const xPositions = [-10, -3, 5, 13, 20];
+
+  const cylinders = geometries.map((geom, i) => {
+    const mesh = new THREE.Mesh(geom, material);
+    mesh.position.set(xPositions[i], 0, 0); // Empiezan desde abajo
+    mesh.castShadow = true;
+    mesh.receiveShadow = false;
+    scene.add(mesh);
+    return mesh;
+  });
+
+
+  // Espejo
+  const mirrorGeometry = new THREE.PlaneGeometry(50, 50);
+  const mirror = new Reflector(mirrorGeometry, {
+    clipBias: 0.003,
+    textureWidth: window.innerWidth * window.devicePixelRatio,
+    textureHeight: window.innerHeight * window.devicePixelRatio,
+    color: 0x888888
+  });
+  mirror.rotation.x = -Math.PI / 2;
+  mirror.position.y = 0;
+  scene.add(mirror);
+
+  const clock = new THREE.Clock();
+  const animationDuration = 2;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+
+    const elapsed = clock.getElapsedTime();
+
+    // Movimiento circular del spotlight
+    const r = 25;
+    const speed = 0.4;
+    spotLight.position.x = r * Math.cos(elapsed * speed);
+    spotLight.position.z = r * Math.sin(elapsed * speed);
+    spotLight.position.y = 20;
+    spotLight.target.position.set(5, 5, 0);
+    spotLight.target.updateMatrixWorld();
+
+    // Animación de aparición de cilindros
+    cylinders.forEach((cylinder, i) => {
+      const t = Math.min(elapsed / animationDuration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      cylinder.position.y = ease * targetYPositions[i];
+    });
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+</script>
+
+</body>
+</html>

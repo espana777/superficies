@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Curriculum Vitae</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+     </style>
+</head>
+<body>
+
+  <div id="tooltip" style="
+  position: absolute;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.75);
+  color: white;
+  border-radius: 5px;
+  pointer-events: none;
+  font-size: 14px;
+  display: none;
+  z-index: 10;"></div>
+
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../build/three.module.js",
+    "three/addons/": "./jsm/"
+  }
+}
+</script>
+
+<script type="module">
+
+  // Nombres para el tooltip de cada cubo
+const tooltips = ['Inicio', 'Galería', 'Servicios', 'Proyectos', 'Contacto'];
+
+// Para el efecto hover
+let hoveredCube = null;
+const tooltipDiv = document.getElementById('tooltip');
+
+// Mouse move para hover
+window.addEventListener('mousemove', (event) => {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(menuCubes);
+
+  if (intersects.length > 0) {
+    const object = intersects[0].object;
+    const index = parseInt(object.name.replace('menuCube', ''));
+
+    // Mostrar tooltip
+    tooltipDiv.textContent = tooltips[index];
+    tooltipDiv.style.left = event.clientX + 10 + 'px';
+    tooltipDiv.style.top = event.clientY + 10 + 'px';
+    tooltipDiv.style.display = 'block';
+
+    // Agrandar solo si no es el mismo de antes
+    if (hoveredCube && hoveredCube !== object) {
+      hoveredCube.scale.set(1, 1, 1);
+    }
+   object.scale.set(1.4, 1.4, 1.4);
+object.rotation.y = Math.PI / 8;  // 22.5 grados
+object.rotation.x = Math.PI / 16; // 11.25 grados
+
+    hoveredCube = object;
+  } else {
+    if (hoveredCube) {
+      hoveredCube.scale.set(1, 1, 1);
+hoveredCube.rotation.set(0, 0, 0);
+hoveredCube = null;
+
+    }
+    tooltipDiv.style.display = 'none';
+  }
+});
+
+
+
+  import * as THREE from 'three';
+  
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Luz
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(2, 2, 5);
+    scene.add(light);
+
+    const textureLoader = new THREE.TextureLoader();
+
+    const materiales = [
+      new THREE.MeshStandardMaterial({ map: textureLoader.load('../examples/jsm/textures/cara1.jpg') }), // derecha
+      new THREE.MeshStandardMaterial({ map: textureLoader.load('../examples/jsm/textures/cara2.jpg') }), // izquierda
+      new THREE.MeshStandardMaterial({ map: textureLoader.load('../examples/jsm/textures/cara3.jpg') }), // arriba
+      new THREE.MeshStandardMaterial({ map: textureLoader.load('../examples/jsm/textures/cara4.jpg') }), // abajo
+      new THREE.MeshStandardMaterial({ map: textureLoader.load('../examples/jsm/textures/cara5.jpg') }), // frente
+      new THREE.MeshStandardMaterial({ map: textureLoader.load('../examples/jsm/textures/cara6.jpg') })  // atrás
+    ];
+
+    const cubeGeometry = new THREE.BoxGeometry(6, 2.4, 6);
+    const cube = new THREE.Mesh(cubeGeometry, materiales);
+    cube.name = 'cuboInteractivo';
+    cube.scale.set(0.10, 0.10, 0.10); // Tamaño inicial
+    scene.add(cube);
+
+    // Cubos pequeños de menú
+const menuCubes = [];
+const urls = ['seccion1.html', 'seccion2.html', 'seccion3.html', 'seccion4.html', 'seccion5.html'];
+
+for (let i = 0; i < 5; i++) {
+  const menuGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+  const menuMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff * Math.random() });
+  const menuCube = new THREE.Mesh(menuGeometry, menuMaterial);
+
+  // Distribuir en horizontal al centro inferior
+  const spacing = 0.5;
+  menuCube.position.set((i - 2) * spacing, -3.5, 0); // Y más bajo (-2) y centrados en X
+  menuCube.name = `menuCube${i}`;
+  scene.add(menuCube);
+  menuCubes.push(menuCube);
+}
+
+
+    camera.position.z = 5;
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+
+
+window.addEventListener('click', (event) => {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects([cube, ...menuCubes]);
+
+  if (intersects.length > 0) {
+    const object = intersects[0].object;
+
+    if (object.name === 'cuboInteractivo') {
+      window.location.href = 'seccion2.html';
+    }
+
+if (object.name.startsWith('menuCube')) {
+  const index = parseInt(object.name.replace('menuCube', ''));
+
+  if (index >= 0 && index <= 4) {
+    // Gira a 0°, 90°, 180°, 270°, 360° según el cubo
+    targetRotationY = index * (Math.PI / 2); // 0, PI/2, PI, 3PI/2, 2PI
+    isRotatingMainCube = true;
+  }
+}
+
+
+  }
+});
+
+
+    // Animación 1 sola vez: giro + escala
+    let rotationProgress = 0;
+    const rotationDuration = 500;
+    let isRotatingMainCube = false;
+let targetRotationY = 0;
+
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (rotationProgress < rotationDuration) {
+        const t = rotationProgress / rotationDuration;
+        cube.rotation.y = t * 2 * Math.PI; // Giro 360
+        const scale = 0.25 + t * 0.75;     // Escalado 0.25 → 1
+        cube.scale.set(scale, scale, scale);
+        rotationProgress++;
+      }
+
+if (isRotatingMainCube) {
+  cube.rotation.y = THREE.MathUtils.lerp(cube.rotation.y, targetRotationY, 0.1);
+  if (Math.abs(cube.rotation.y - targetRotationY) < 0.01) {
+    cube.rotation.y = targetRotationY;
+    isRotatingMainCube = false;
+  }
+}
+
+
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

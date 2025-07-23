@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gráfico 3D Animado con Escala</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+
+    .label {
+      position: absolute;
+      color: white;
+      font-family: sans-serif;
+      font-size: 12px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+let scene, camera, renderer, labelRenderer;
+let cilindros = [];
+let lineMaterials = []; // ← AÑADE ESTA LÍNEA
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(40, 40, 60);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Label renderer
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  labelRenderer.domElement.style.top = '0px';
+  document.body.appendChild(labelRenderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
+
+  const cubeSize = 40;
+  const steps = 10;  // más líneas para que se vea como malla
+  const lineColor = new THREE.Color(0x00ffff);
+
+
+  for (let i = 0; i <= steps; i++) {
+    const y = -cubeSize/2 + i * (cubeSize / steps);
+
+    const vertices = new Float32Array([
+      // Cara frontal (línea horizontal de izquierda a derecha)
+      -cubeSize/2, y, cubeSize/2,
+       cubeSize/2, y, cubeSize/2,
+
+      // Cara izquierda (línea horizontal de atrás a adelante)
+      -cubeSize/2, y, -cubeSize/2,
+      -cubeSize/2, y,  cubeSize/2
+    ]);
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    
+    // Material con transparencia para animación
+    const material = new THREE.LineBasicMaterial({
+      color: lineColor.clone(),
+      transparent: true,
+      opacity: 0.5
+    });
+
+    lineMaterials.push(material); // lo almacenamos para animarlo
+    const line = new THREE.LineSegments(geometry, material);
+    scene.add(line);
+
+    // Etiqueta con valor
+    const valor = ((i / steps) * 40).toFixed(0);
+    const div = document.createElement('div');
+    div.className = 'label';
+    div.textContent = valor;
+    const label = new CSS2DObject(div);
+    label.position.set(-cubeSize/2 - 2, y, cubeSize/2 + 1);
+    scene.add(label);
+  }
+
+
+  // Datos y cilindros
+  const datos = [10, 18, 25, 15, 30, 12];
+  const spacing = 6;
+
+  datos.forEach((alturaObjetivo, i) => {
+    const geometry = new THREE.CylinderGeometry(1.5, 1.5, 1, 32); // Altura inicial 1
+    const material = new THREE.MeshStandardMaterial({ color: new THREE.Color(`hsl(${i * 50}, 100%, 60%)`) });
+    const cilindro = new THREE.Mesh(geometry, material);
+    cilindro.position.set(-15 + i * spacing, -20 + 0.5, 0); // Posición base
+    cilindro.userData.alturaFinal = alturaObjetivo;
+    cilindro.userData.creciendo = true;
+    scene.add(cilindro);
+    cilindros.push(cilindro);
+  });
+
+  // Ejes
+  const axes = new THREE.AxesHelper(25);
+  scene.add(axes);
+
+  // Resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Animación de crecimiento de cilindros
+  cilindros.forEach(cilindro => {
+    if (cilindro.userData.creciendo) {
+      const alturaActual = cilindro.geometry.parameters.height;
+      const alturaFinal = cilindro.userData.alturaFinal;
+      if (alturaActual < alturaFinal) {
+        const nuevaAltura = alturaActual + 0.5;
+        const alturaAnimada = Math.min(nuevaAltura, alturaFinal);
+
+        // Reemplazar geometría con nueva altura
+        const nuevaGeo = new THREE.CylinderGeometry(1.5, 1.5, alturaAnimada, 32);
+        cilindro.geometry.dispose();
+        cilindro.geometry = nuevaGeo;
+
+        cilindro.position.y = -20 + alturaAnimada / 2;
+      } else {
+        cilindro.userData.creciendo = false;
+      }
+    }
+  });
+
+    // ✨ Animación sutil de la opacidad en las líneas horizontales
+  const tiempo = Date.now() * 0.002;
+  lineMaterials.forEach((mat, idx) => {
+    mat.opacity = 0.4 + 0.2 * Math.sin(tiempo + idx);
+  });
+
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+</script>
+
+</body>
+</html>

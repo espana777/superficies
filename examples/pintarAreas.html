@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rellenar Figura Cerrada</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #ui {
+      position: absolute; top: 20px; left: 20px;
+      background: white; padding: 10px;
+      z-index: 1; border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <button id="connectPoints">Unir puntos seleccionados</button>
+    <button id="fillArea">Rellenar figura</button>
+    <button id="clearBtn">Limpiar</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+  import * as THREE from 'three';
+
+  const scene = new THREE.Scene();
+  scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 20);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0xffffff);
+  document.body.appendChild(renderer.domElement);
+
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+
+  const points = [];
+  const lines = [];
+  const selectedPoints = [];
+  const selectedLines = [];
+
+
+const grid = new THREE.GridHelper(30, 30);
+grid.material = new THREE.LineBasicMaterial({ color: 'yellow', transparent: true, opacity: 0.5 });
+grid.rotation.x = Math.PI / 2;
+scene.add(grid);
+
+
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(100, 100),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  scene.add(plane);
+
+  function drawPoint(x, y) {
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x000000 })
+    );
+    sphere.position.set(x, y, 0);
+    scene.add(sphere);
+    points.push(sphere);
+  }
+
+  function drawLine(p1, p2, save = true) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([p1.position, p2.position]);
+    const material = new THREE.LineBasicMaterial({ color: 0x000000 });
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
+    if (save) lines.push({ p1, p2, mesh: line });
+    return line;
+  }
+
+  let suppressClick = false;
+
+  renderer.domElement.addEventListener('click', e => {
+    if (suppressClick) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(plane);
+    if (intersects.length > 0) {
+      const p = intersects[0].point;
+      const snapped = new THREE.Vector3(Math.round(p.x), Math.round(p.y), 0);
+      drawPoint(snapped.x, snapped.y);
+    }
+  });
+
+  renderer.domElement.addEventListener('dblclick', e => {
+    suppressClick = true;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    for (let p of points) {
+      const intersects = raycaster.intersectObject(p);
+      if (intersects.length > 0) {
+        if (!selectedPoints.includes(p)) {
+          p.material.color.set(0xff0000);
+          selectedPoints.push(p);
+        }
+      }
+    }
+
+    setTimeout(() => suppressClick = false, 250);
+  });
+
+  document.getElementById('connectPoints').addEventListener('click', () => {
+    if (selectedPoints.length < 2) return;
+
+    for (let i = 0; i < selectedPoints.length - 1; i++) {
+      const line = drawLine(selectedPoints[i], selectedPoints[i + 1]);
+      selectedLines.push({ p1: selectedPoints[i], p2: selectedPoints[i + 1], mesh: line });
+    }
+    // Línea para cerrar figura
+    const closingLine = drawLine(selectedPoints[selectedPoints.length - 1], selectedPoints[0]);
+    selectedLines.push({ p1: selectedPoints[selectedPoints.length - 1], p2: selectedPoints[0], mesh: closingLine });
+    selectedPoints.length = 0;
+  });
+
+  document.getElementById('fillArea').addEventListener('click', () => {
+    if (selectedLines.length < 3) return alert('Se requieren al menos 3 líneas para formar un área');
+
+    const vertices = selectedLines.map(({ p1 }) => new THREE.Vector2(p1.position.x, p1.position.y));
+    const shape = new THREE.Shape(vertices);
+    const geometry = new THREE.ShapeGeometry(shape);
+    const material = new THREE.MeshBasicMaterial({ color: 0x88ccff, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    selectedLines.length = 0;
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    while (scene.children.length > 0) scene.remove(scene.children[0]);
+    scene.add(plane);
+    points.length = 0;
+    lines.length = 0;
+    selectedPoints.length = 0;
+    selectedLines.length = 0;
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  </script>
+</body>
+</html>

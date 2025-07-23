@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tips</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "../build/three.module.js",
+            "three/addons/": "./jsm/"
+          }
+        }
+      </script>
+   <script type="module">
+   import * as THREE from 'three';
+
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import getLayer from 'three/addons/controls/getLayer.js';
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+
+    camera.position.z = 5;
+    const renderer = new THREE.WebGLRenderer({
+       antialias: true,
+       preserveDrawingBuffer: true
+    });
+
+    renderer.setSize(w, h);
+    renderer.autoClear = false;
+    document.body.appendChild(renderer.domElement);
+    
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.03;
+
+    //post processing
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const afterImagePass = new afterImagePass();
+    afterImagePass.unifoms['damp'].value = 0.9;
+    const composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
+    //composer.addPass(afterImagePass);
+
+
+
+
+    const geometry = new THREE.IcosahedronGeometry();
+        
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xff9900
+    });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x222222, 3);
+  scene.add(hemiLight);
+
+
+    // Sprites BG
+    const gradientBackground = getLayer({
+      hue: 0.6,
+      numSprites: 8,
+      opacity: 0.2,
+      path: './fonts/rad-grad.png',
+      radius: 10,
+      size: 24,
+      z: -10.5,
+    });
+    scene.add(gradientBackground);
+
+
+    function animate() {
+        requestAnimationFrame(animate);
+        mesh.rotation.z += 0.01;
+        mesh.rotation.y += 0.02;
+        
+        renderer.render(scene, camera);
+        controls.update();
+
+    }
+
+    animate();
+
+
+
+
+</script>
+</body>
+</html>

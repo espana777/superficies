@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presentación Interactiva</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: #fff;
+    }
+    header {
+      padding: 2rem;
+      text-align: center;
+      background-color: #222;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    nav {
+      margin-top: 1rem;
+    }
+    nav button {
+      margin: 0.3rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #0ff;
+      color: #000;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    nav button:hover {
+      background-color: #0cc;
+    }
+    section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      scroll-margin-top: 100px;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 1s ease-out, transform 1s ease-out;
+    }
+    section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    iframe {
+      width: 90%;
+      height: 600px;
+      border: none;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+      border-radius: 10px;
+      transition: transform 0.6s ease, opacity 0.6s ease;
+    }
+    h2 {
+      margin-bottom: 1rem;
+      color: #0ff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Presentación de Gráficas Interactivas 3D</h1>
+    <p>Visualización dinámica con Three.js</p>
+    <nav>
+      <button onclick="document.getElementById('barras').scrollIntoView()">Gráfica de Barras</button>
+      <button onclick="document.getElementById('pastel').scrollIntoView()">Gráfica de Pastel</button>
+      <button onclick="document.getElementById('conclusion').scrollIntoView()">Conclusión</button>
+    </nav>
+  </header>
+
+  <section id="barras">
+    <h2>Superficies</h2>
+    <iframe src="superficies.html"></iframe>
+  </section>
+
+  <section id="pastel">
+    <h2>Gráfica de Pastel</h2>
+    <iframe src="pieAnimado.html"></iframe>
+  </section>
+  
+  <section id="pastel">
+    <h2>Líneas y puntos</h2>
+    <iframe src="textoExpiral.html"></iframe>
+  </section>
+  
+
+    <section id="pastel">
+    <h2>Texto Biselado</h2>
+    <iframe src="textoBiselado.html"></iframe>
+  </section>
+
+      <section id="pastel">
+    <h2>Texto en coordenadas</h2>
+    <iframe src="texto.html"></iframe>
+  </section>
+
+  
+      <section id="pastel">
+    <h2>Silla de montar</h2>
+    <iframe src="silladeMontar.html"></iframe>
+  </section>
+
+  
+      <section id="pastel">
+    <h2>Shaders</h2>
+    <iframe src="shaders.html"></iframe>
+  </section>
+
+
+  <section id="pastel">
+    <h2>Libro</h2>
+    <iframe src="libro.html"></iframe>
+  </section>
+
+   <section id="pastel">
+    <h2>Gráfico de cilindros</h2>
+    <iframe src="graficaCilindros.html"></iframe>
+  </section>
+
+     <section id="pastel">
+    <h2>Plano Interactivo XY</h2>
+    <iframe src="genesis.html"></iframe>
+  </section>
+
+  <section id="pastel">
+    <h2>Dibuja Líneas XY</h2>
+    <iframe src="dibujaLineas.html"></iframe>
+  </section>
+
+
+  <section id="pastel">
+    <h2>graficoEspejo</h2>
+    <iframe src="graficaEspejo.html"></iframe>
+  </section>
+
+  <section id="pastel">
+    <h2>Elpsoide</h2>
+    <iframe src="elipsoide.html"></iframe>
+  </section>
+
+
+  <section id="conclusion">
+    <h2>Conclusión</h2>
+    <p>Estas visualizaciones pueden adaptarse a métricas reales y aplicarse a diferentes industrias.</p>
+  </section>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.1
+    });
+
+    document.querySelectorAll('section').forEach(section => {
+      observer.observe(section);
+    });
+  </script>
+</body>
+</html>

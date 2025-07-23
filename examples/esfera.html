@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Transformación Elipsoide → Esfera</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+  <button id="toggleBtn">Transformar</button>
+<style>
+  #toggleBtn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #44cc88;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 1;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+  }
+</style>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+  let transformar = false;
+
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+  import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+  // Escena, cámara y renderer
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf4f4f4);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(25, 25, 25);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.update();
+
+  // Luces
+  scene.add(new THREE.AmbientLight(0x404040));
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(15, 20, 15);
+  scene.add(light);
+
+  // Ejes
+  const axes = new THREE.AxesHelper(10);
+  scene.add(axes);
+
+  // Parámetros iniciales (elipsoide)
+  let a = 7, b = 5, c = 3;
+  const target = 5; // Valor final para esfera
+
+  const uSteps = 100, vSteps = 100;
+  const positions = [];
+
+  for (let i = 0; i <= uSteps; i++) {
+    const u = Math.PI * i / uSteps;
+    for (let j = 0; j <= vSteps; j++) {
+      const v = 2 * Math.PI * j / vSteps;
+
+      const x = a * Math.sin(u) * Math.cos(v);
+      const y = b * Math.sin(u) * Math.sin(v);
+      const z = c * Math.cos(u);
+
+      positions.push(x, y, z);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array(positions);
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+  const indices = [];
+  for (let i = 0; i < uSteps; i++) {
+    for (let j = 0; j < vSteps; j++) {
+      const a = i * (vSteps + 1) + j;
+      const b = a + vSteps + 1;
+      indices.push(a, b, a + 1);
+      indices.push(b, b + 1, a + 1);
+    }
+  }
+
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x44cc88,
+    side: THREE.DoubleSide,
+    shininess: 70,
+    transparent: true,
+    opacity: 0.9
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+  document.getElementById('toggleBtn').addEventListener('click', () => {
+  transformar = !transformar;
+  document.getElementById('toggleBtn').textContent = transformar ? 'Detener' : 'Transformar';
+});
+
+
+  // Etiqueta
+  let textMesh;
+  const loader = new FontLoader();
+  loader.load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json', function(font) {
+    const textGeo = new TextGeometry('Transformación: Elipsoide → Esfera', {
+      font: font,
+      size: 1,
+      height: 0.2,
+      curveSegments: 12
+    });
+
+    const textMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    textMesh = new THREE.Mesh(textGeo, textMat);
+    textMesh.position.set(-14, -10, 6);
+    scene.add(textMesh);
+  });
+
+  // Animación
+  function animate() {
+    requestAnimationFrame(animate);
+
+    // Actualizar parámetros
+    a += (target - a) * 0.01;
+    b += (target - b) * 0.01;
+    c += (target - c) * 0.01;
+
+
+    if (transformar) {
+  a += (target - a) * 0.01;
+  b += (target - b) * 0.01;
+  c += (target - c) * 0.01;
+}
+
+    // Recalcular geometría
+    const pos = geometry.attributes.position.array;
+    let index = 0;
+
+    for (let i = 0; i <= uSteps; i++) {
+      const u = Math.PI * i / uSteps;
+      for (let j = 0; j <= vSteps; j++) {
+        const v = 2 * Math.PI * j / vSteps;
+
+        const x = a * Math.sin(u) * Math.cos(v);
+        const y = b * Math.sin(u) * Math.sin(v);
+        const z = c * Math.cos(u);
+
+        pos[index++] = x;
+        pos[index++] = y;
+        pos[index++] = z;
+      }
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    geometry.computeVertexNormals();
+
+    mesh.rotation.y += 0.003;
+
+    if (textMesh) {
+      textMesh.lookAt(camera.position);
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  // Responsivo
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+</script>
+
+</body>
+</html>

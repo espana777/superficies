@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dibujo con Coordenadas en XY</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+
+    #controls {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 5px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    #controls input {
+      width: 50px;
+      margin: 2px;
+    }
+
+    .label {
+      position: absolute;
+      color: yellow;
+      background: rgba(0,0,0,0.4);
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <label>Inicio (x, y):</label>
+  <input type="number" id="x1" value="-5" step="0.5">
+  <input type="number" id="y1" value="5" step="0.5"><br>
+  <label>Fin (x, y):</label>
+  <input type="number" id="x2" value="5" step="0.5">
+  <input type="number" id="y2" value="5" step="0.5"><br>
+  <button id="drawCustomLineButton">Dibujar línea personalizada</button>
+  <button id="clearButton">Borrar todo</button>
+</div>
+
+<div id="labelsContainer"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../build/three.module.js",
+    "three/addons/": "./jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let scene, camera, renderer, controls;
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+let points = [];
+let line;
+let pointGroup;
+let labelGroup = [];
+let linesGroup;
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 0, 20);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.update();
+  
+  
+  //AxesHelper
+  scene.add(new THREE.AxesHelper(15));
+
+  const grid = new THREE.GridHelper(22, 20, 0x444444, 0x888888);
+  grid.rotation.x = Math.PI / 2;
+  scene.add(grid);
+
+  pointGroup = new THREE.Group();
+  linesGroup = new THREE.Group();
+  scene.add(pointGroup);
+  scene.add(linesGroup);
+
+  window.addEventListener('click', onMouseClick, false);
+  document.getElementById('drawCustomLineButton').addEventListener('click', drawCustomLine);
+  document.getElementById('clearButton').addEventListener('click', clearAll);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function onMouseClick(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const planeXY = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const intersect = new THREE.Vector3();
+  raycaster.ray.intersectPlane(planeXY, intersect);
+
+  const gridSize = 0.5;
+  intersect.x = Math.round(intersect.x / gridSize) * gridSize;
+  intersect.y = Math.round(intersect.y / gridSize) * gridSize;
+
+  points.push(intersect.clone());
+
+  if (points.length > 1) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    if (line) scene.remove(line);
+    line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+    scene.add(line);
+  }
+
+  drawPoint(intersect);
+  addLabel(intersect);
+}
+
+function drawCustomLine() {
+  const x1 = parseFloat(document.getElementById('x1').value);
+  const y1 = parseFloat(document.getElementById('y1').value);
+  const x2 = parseFloat(document.getElementById('x2').value);
+  const y2 = parseFloat(document.getElementById('y2').value);
+
+  const p1 = new THREE.Vector3(x1, y1, 0);
+  const p2 = new THREE.Vector3(x2, y2, 0);
+
+  const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+  const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x0000ff }));
+  linesGroup.add(line);
+
+  drawPoint(p1);
+  drawPoint(p2);
+  addLabel(p1);
+  addLabel(p2);
+}
+
+function drawPoint(position) {
+  const sphereGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+  const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+  sphere.position.copy(position);
+  pointGroup.add(sphere);
+}
+
+function addLabel(position) {
+  const label = document.createElement('div');
+  label.className = 'label';
+  // label.innerText = `(${position.x.toFixed(2)}, ${position.y.toFixed(2)})`;
+  label.innerText = `(${Math.round(position.x)}, ${Math.round(position.y)})`;
+  document.getElementById('labelsContainer').appendChild(label);
+  labelGroup.push({ label, position });
+}
+
+function clearAll() {
+  points = [];
+  if (line) {
+    scene.remove(line);
+    line.geometry.dispose();
+    line = null;
+  }
+
+  // Eliminar esferas y líneas
+  pointGroup.clear();
+  linesGroup.clear();
+
+  // Eliminar etiquetas
+  labelGroup.forEach(({ label }) => label.remove());
+  labelGroup = [];
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+  updateLabels();
+}
+
+function updateLabels() {
+  const labelsContainer = document.getElementById('labelsContainer');
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  labelGroup.forEach(({ label, position }) => {
+    const pos = position.clone().project(camera);
+    const x = (pos.x * 0.5 + 0.5) * width;
+    const y = (-pos.y * 0.5 + 0.5) * height;
+    label.style.left = `${x}px`;
+    label.style.top = `${y}px`;
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gráfica de Barras con Espejo</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { Reflector } from 'three/addons/objects/Reflector.js';
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x202020);
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(10, 8, 10);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.enablePan = false;
+
+  // Luces
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(10, 10, 10);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x404040));
+
+  // Grupo de barras (gráfica)
+  const barGroup = new THREE.Group();
+  const barMaterial = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+  const barWidth = 0.8;
+  const spacing = 1.2;
+
+  const barHeights = [2, 4, 3, 6, 1.5, 5, 3.5]; // Alturas arbitrarias
+
+  for (let i = 0; i < 7; i++) {
+    const height = barHeights[i];
+    const geometry = new THREE.BoxGeometry(barWidth, height, barWidth);
+    const bar = new THREE.Mesh(geometry, barMaterial);
+    bar.position.set(i * spacing, height / 2, 0); // Centramos en Y
+    barGroup.add(bar);
+  }
+
+  // Centrar grupo en el eje Z
+  barGroup.position.set(-((7 - 1) * spacing) / 2, 0, 0);
+  scene.add(barGroup);
+
+  // Espejo como suelo
+  const mirrorGeometry = new THREE.PlaneGeometry(30, 30);
+  const mirror = new Reflector(mirrorGeometry, {
+    clipBias: 0.003,
+    textureWidth: window.innerWidth * window.devicePixelRatio,
+    textureHeight: window.innerHeight * window.devicePixelRatio,
+    color: 0x888888
+  });
+  mirror.rotation.x = -Math.PI / 2;
+  mirror.position.y = 0;
+  scene.add(mirror);
+
+  // Animación
+  let angle = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+
+    angle += 0.005;
+    const radius = 12;
+    camera.position.x = Math.cos(angle) * radius;
+    camera.position.z = Math.sin(angle) * radius;
+    camera.lookAt(barGroup.position);
+
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  animate();
+</script>
+
+</body>
+</html>

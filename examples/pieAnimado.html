@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pie Chart Interactivo</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    .label {
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "../build/three.module.js",
+      "three/addons/": "./jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { Reflector } from 'three/addons/objects/Reflector.js';
+  import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x202020);
+
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(6, 6, 6);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  document.body.appendChild(labelRenderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.enablePan = false;
+
+  // Luces
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(5, 10, 7);
+  scene.add(dirLight);
+
+  // Espejo
+  const mirrorGeometry = new THREE.PlaneGeometry(30, 30);
+  const mirror = new Reflector(mirrorGeometry, {
+    clipBias: 0.003,
+    textureWidth: window.innerWidth * window.devicePixelRatio,
+    textureHeight: window.innerHeight * window.devicePixelRatio,
+    color: 0x888888
+  });
+  mirror.rotation.x = -Math.PI / 2;
+  mirror.position.y = 0;
+  scene.add(mirror);
+
+  // Datos de ejemplo
+  const data = [
+    { label: "Ventas", value: 30, color: "#FF6B6B" },
+    { label: "Usuarios", value: 20, color: "#FFD93D" },
+    { label: "Clics", value: 15, color: "#6BCB77" },
+    { label: "Conversiones", value: 25, color: "#4D96FF" },
+    { label: "Otros", value: 10, color: "#A66DD4" }
+  ];
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+
+  // Crear sectores
+  const pieGroup = new THREE.Group();
+  let startAngle = 0;
+  const segments = [];
+
+  data.forEach(d => {
+    const angle = (d.value / total) * Math.PI * 2;
+
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.arc(0, 0, 2, startAngle, startAngle + angle, false);
+    shape.lineTo(0, 0);
+
+    const extrudeSettings = { depth: 0.6, bevelEnabled: false };
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    const material = new THREE.MeshStandardMaterial({ color: d.color });
+    const segment = new THREE.Mesh(geometry, material);
+
+    segment.rotation.x = -Math.PI / 2;
+    segment.userData = {
+      midAngle: startAngle + angle / 2,
+      basePosition: new THREE.Vector3(0, 0.01, 0),
+      offset: 0.4,
+      exploded: false,
+      labelObject: null
+    };
+
+    // Etiqueta
+    const percent = ((d.value / total) * 100).toFixed(1);
+    const div = document.createElement('div');
+    div.className = 'label';
+    div.textContent = `${d.label}: ${percent}%`;
+    const label = new CSS2DObject(div);
+    segment.userData.labelObject = label;
+
+    const r = 2.2;
+    label.position.set(
+      Math.cos(segment.userData.midAngle) * r,
+      extrudeSettings.depth + 0.3,
+      Math.sin(segment.userData.midAngle) * r
+    );
+    segment.add(label);
+
+    pieGroup.add(segment);
+    segments.push(segment);
+    startAngle += angle;
+  });
+
+  pieGroup.position.y = 0.01;
+  scene.add(pieGroup);
+
+  // Raycaster para interacciones
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let hoveredSegment = null;
+  let selectedSegment = null;
+
+  function onPointerMove(event) {
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  }
+
+  function onClick() {
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(segments);
+    if (intersects.length > 0) {
+      const clicked = intersects[0].object;
+
+      // Reset anterior
+      if (selectedSegment && selectedSegment !== clicked) {
+        restoreSegment(selectedSegment);
+      }
+
+      if (clicked.userData.exploded) {
+        restoreSegment(clicked);
+        selectedSegment = null;
+      } else {
+        explodeSegment(clicked);
+        selectedSegment = clicked;
+      }
+    }
+  }
+
+  function explodeSegment(segment) {
+    const angle = segment.userData.midAngle;
+    const offset = segment.userData.offset;
+    segment.position.set(
+      Math.cos(angle) * offset,
+      0.01,
+      Math.sin(angle) * offset
+    );
+    segment.userData.exploded = true;
+  }
+
+  function restoreSegment(segment) {
+    segment.position.set(0, 0.01, 0);
+    segment.userData.exploded = false;
+  }
+
+  // Animación
+  function animate() {
+    requestAnimationFrame(animate);
+
+    // Hover animado
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(segments);
+
+    if (intersects.length > 0) {
+      const hovered = intersects[0].object;
+      if (!hovered.userData.exploded) {
+        hovered.position.y = 0.08;
+      }
+      if (hoveredSegment && hoveredSegment !== hovered && !hoveredSegment.userData.exploded) {
+        hoveredSegment.position.y = 0.01;
+      }
+      hoveredSegment = hovered;
+    } else if (hoveredSegment && !hoveredSegment.userData.exploded) {
+      hoveredSegment.position.y = 0.01;
+      hoveredSegment = null;
+    }
+
+    pieGroup.rotation.y += 0.002;
+    controls.update();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+  }
+
+  animate();
+
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('click', onClick);
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+
+</body>
+</html>

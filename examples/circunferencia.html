@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Animación de Circunferencias</title>
+  <style> body { margin: 0; overflow: hidden; } canvas { display: block; } </style>
+</head>
+<body>
+  
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "../build/three.module.js",
+            "three/addons/": "./jsm/"
+          }
+        }
+      </script>
+   <script type="module">
+   import * as THREE from 'three';
+
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+
+
+    let scene, camera, renderer;
+    let time = 0;
+    let circles = [];
+
+    init();
+    animate();
+
+    function createGradientShaderMaterial(color1, color2) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          color1: { value: new THREE.Color(color1) },
+          color2: { value: new THREE.Color(color2) },
+        },
+        vertexShader: `
+          varying float vY;
+          void main() {
+            vY = position.y;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 color1;
+          uniform vec3 color2;
+          varying float vY;
+          void main() {
+            float t = (vY + 10.0) / 20.0;
+            gl_FragColor = vec4(mix(color1, color2, t), 1.0);
+          }
+        `,
+        side: THREE.DoubleSide,
+      });
+    }
+
+    function createSpiralCircle(radius, index) {
+      const segments = 100;
+      const points = [];
+      for (let i = 0; i <= segments; i++) {
+        let angle = (i / segments) * Math.PI * 2;
+        let r = radius + 0.2 * Math.sin(angle * 5 + index); // espiral ligera
+        let x = r * Math.cos(angle);
+        let y = r * Math.sin(angle);
+        points.push(new THREE.Vector3(x, y, 0));
+      }
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = createGradientShaderMaterial('#ff00ff', '#00ffff');
+      const line = new THREE.LineLoop(geometry, material);
+      line.userData = { baseRadius: radius, index };
+      return line;
+    }
+
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = 30;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+      const control = new OrbitControls(camera, renderer.domElement);
+      control.update();
+      
+
+
+      // Crear múltiples circunferencias
+      for (let i = 0; i < 5; i++) {
+        const circle = createSpiralCircle(3 + i * 2, i);
+        circle.rotation.x = Math.PI / 2;
+        scene.add(circle);
+        circles.push(circle);
+      }
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      time += 0.01;
+
+      circles.forEach((circle, i) => {
+        const newRadius = circle.userData.baseRadius + Math.sin(time + i) * 0.5;
+        const segments = 100;
+        const points = [];
+
+        for (let j = 0; j <= segments; j++) {
+          let angle = (j / segments) * Math.PI * 2;
+          let r = newRadius + 0.3 * Math.sin(angle * 4 + time + i);
+          let x = r * Math.cos(angle);
+          let y = r * Math.sin(angle);
+          points.push(new THREE.Vector3(x, y, 0));
+        }
+
+        circle.geometry.setFromPoints(points);
+        circle.rotation.z += 0.002;
+      });
+
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
